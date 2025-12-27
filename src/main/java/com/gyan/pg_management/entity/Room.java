@@ -1,5 +1,6 @@
 package com.gyan.pg_management.entity;
 
+
 import jakarta.persistence.*;
 import lombok.*;
 
