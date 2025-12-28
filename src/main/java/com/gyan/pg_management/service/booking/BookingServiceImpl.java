@@ -1,25 +1,26 @@
-package com.gyan.pg_management.service;
+package com.gyan.pg_management.service.booking;
 
 import com.gyan.pg_management.entity.*;
 import com.gyan.pg_management.enums.BookingStatus;
 import com.gyan.pg_management.repository.BookingRepository;
 import com.gyan.pg_management.repository.PaymentRepository;
+import com.gyan.pg_management.service.balance.BalanceServiceImpl;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
-import java.util.ArrayList;
 
 @Service
 @RequiredArgsConstructor
-public class BookingService {
+public class BookingServiceImpl implements BookingService{
 
     private final BookingRepository bookingRepository;
     private final PaymentRepository paymentRepository;
-    private final BalanceService balanceService;
+    private final BalanceServiceImpl balanceService;
 
     @Transactional
+    @Override
     public Booking createBooking(
             Tenant tenant,
             Bed bed,
@@ -59,6 +60,7 @@ public class BookingService {
     }
 
     @Transactional
+    @Override
     public Booking checkoutBooking(Long bookingId, LocalDate checkoutDate) {
         Booking booking = bookingRepository.findById(bookingId)
                 .orElseThrow(() -> new IllegalArgumentException("Booking not found"));
@@ -86,6 +88,7 @@ public class BookingService {
     }
 
     @Transactional
+    @Override
     public Booking cancelBooking(Long bookingId) {
 
         Booking booking = bookingRepository.findById(bookingId)

@@ -1,4 +1,4 @@
-package com.gyan.pg_management.service;
+package com.gyan.pg_management.service.room;
 
 import com.gyan.pg_management.entity.Property;
 import com.gyan.pg_management.entity.Room;
@@ -9,11 +9,12 @@ import org.springframework.stereotype.Service;
 
 @Service
 @RequiredArgsConstructor
-public class RoomService {
+public class RoomServiceImpl implements RoomService{
 
     private final RoomRepository roomRepository;
     private final PropertyRepository propertyRepository;
 
+    @Override
     public Room createRoom(
             Long propertyId,
             String roomNumber,
@@ -35,6 +36,7 @@ public class RoomService {
     }
 
 
+    @Override
     public void deactivateRoom(Long roomId) {
         Room room = roomRepository.findById(roomId)
                 .orElseThrow(() -> new IllegalArgumentException("Room not found"));

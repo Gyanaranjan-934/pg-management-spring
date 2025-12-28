@@ -1,4 +1,4 @@
-package com.gyan.pg_management.service;
+package com.gyan.pg_management.service.bed;
 
 import com.gyan.pg_management.entity.Bed;
 import com.gyan.pg_management.entity.Room;
@@ -8,7 +8,7 @@ import org.springframework.stereotype.Service;
 
 @Service
 @RequiredArgsConstructor
-public class BedService {
+public class BedServiceImpl implements BedService {
 
     private final BedRepository bedRepository;
 

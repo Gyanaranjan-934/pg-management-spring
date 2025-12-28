@@ -1,4 +1,4 @@
-package com.gyan.pg_management.service;
+package com.gyan.pg_management.service.payments;
 
 import com.gyan.pg_management.entity.Booking;
 import com.gyan.pg_management.entity.Payment;
@@ -13,9 +13,10 @@ import java.time.LocalDate;
 
 @Service
 @RequiredArgsConstructor
-public class PaymentService {
+public class PaymentServiceImpl implements PaymentService {
     private final PaymentRepository paymentRepository;
 
+    @Override
     public Payment recordPayment(
             Booking booking,
             Tenant tenant,

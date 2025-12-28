@@ -1,4 +1,4 @@
-package com.gyan.pg_management.service;
+package com.gyan.pg_management.service.property;
 
 import com.gyan.pg_management.entity.Property;
 import com.gyan.pg_management.entity.User;
@@ -8,10 +8,11 @@ import org.springframework.stereotype.Service;
 
 @Service
 @RequiredArgsConstructor
-public class PropertyService {
+public class PropertyServiceImpl implements PropertyService{
 
     private final PropertyRepository propertyRepository;
 
+    @Override
     public Property createProperty(
             String name,
             String address,
@@ -29,6 +30,7 @@ public class PropertyService {
         return propertyRepository.save(property);
     }
 
+    @Override
     public void deactivateProperty(Long propertyId) {
         Property property = propertyRepository.findById(propertyId)
                 .orElseThrow(() -> new IllegalArgumentException("Property not found"));

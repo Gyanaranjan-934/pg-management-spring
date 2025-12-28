@@ -1,4 +1,4 @@
-package com.gyan.pg_management.service;
+package com.gyan.pg_management.service.tenant;
 
 import com.gyan.pg_management.entity.Tenant;
 import com.gyan.pg_management.repository.TenantRepository;
@@ -7,7 +7,7 @@ import org.springframework.stereotype.Service;
 
 @Service
 @RequiredArgsConstructor
-public class TenantService {
+public class TenantServiceImpl implements TenantService{
 
     private final TenantRepository tenantRepository;
 
