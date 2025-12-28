@@ -4,10 +4,12 @@ import com.gyan.pg_management.entity.*;
 import com.gyan.pg_management.enums.BookingStatus;
 import com.gyan.pg_management.repository.BookingRepository;
 import com.gyan.pg_management.repository.PaymentRepository;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
 
 @Service
 @RequiredArgsConstructor
@@ -15,7 +17,9 @@ public class BookingService {
 
     private final BookingRepository bookingRepository;
     private final PaymentRepository paymentRepository;
+    private final BalanceService balanceService;
 
+    @Transactional
     public Booking createBooking(
             Tenant tenant,
             Bed bed,
@@ -35,6 +39,13 @@ public class BookingService {
                     throw new IllegalStateException("Bed is already occupied");
                 });
 
+        // Rule: Tenant has already active booking or not
+        bookingRepository.findByTenantAndStatus(tenant, BookingStatus.ACTIVE)
+                .ifPresent(booking -> {
+                    throw new IllegalStateException("Tenant already having active booking");
+                });
+
+
         Booking booking = Booking.builder()
                 .tenant(tenant)
                 .bed(bed)
@@ -47,7 +58,8 @@ public class BookingService {
         return bookingRepository.save(booking);
     }
 
-    public Booking checkoutBooking(Long bookingId) {
+    @Transactional
+    public Booking checkoutBooking(Long bookingId, LocalDate checkoutDate) {
         Booking booking = bookingRepository.findById(bookingId)
                 .orElseThrow(() -> new IllegalArgumentException("Booking not found"));
 
@@ -55,21 +67,49 @@ public class BookingService {
             throw new IllegalStateException("Booking already completed");
         }
 
-        double totalPaid = paymentRepository.findByBooking(booking)
-                .stream()
-                .mapToDouble(Payment::getAmount)
-                .sum();
+        // Ensure balance exists
+        balanceService.initializeIfAbsent(booking.getTenant());
 
-        double pending = booking.getMonthlyRent() - totalPaid;
+        // Due check
+        if (balanceService.hasPendingDues(booking.getTenant())) {
+            throw new IllegalStateException("Outstanding dues exist. Clear before booking.");
+        }
 
-        if (pending > 0) {
-            throw new IllegalStateException(
-                    "Cannot checkout. Pending dues: " + pending
-            );
+        if (checkoutDate.isBefore(LocalDate.now())){
+            throw new IllegalStateException("Checkout date cannot be before current date");
         }
 
         booking.setStatus(BookingStatus.COMPLETED);
         booking.setEndDate(LocalDate.now());
+
+        return bookingRepository.save(booking);
+    }
+
+    @Transactional
+    public Booking cancelBooking(Long bookingId) {
+
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new IllegalArgumentException("Booking not found"));
+
+        // Rule 1: Already completed
+        if (booking.getStatus() == BookingStatus.COMPLETED) {
+            throw new IllegalStateException("Completed booking cannot be cancelled");
+        }
+
+        // Rule 2: Already cancelled
+        if (booking.getStatus() == BookingStatus.CANCELLED) {
+            throw new IllegalStateException("Booking already cancelled");
+        }
+
+        // Rule 3: Stay already started
+        if (!booking.getStartDate().isAfter(LocalDate.now())) {
+            throw new IllegalStateException(
+                    "Booking cannot be cancelled after stay has started"
+            );
+        }
+
+        booking.setStatus(BookingStatus.CANCELLED);
+        booking.setEndDate(LocalDate.now()); // audit purpose
 
         return bookingRepository.save(booking);
     }
