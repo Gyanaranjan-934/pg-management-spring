@@ -37,11 +37,17 @@ public class RoomServiceImpl implements RoomService{
 
 
     @Override
-    public void deactivateRoom(Long roomId) {
-        Room room = roomRepository.findById(roomId)
-                .orElseThrow(() -> new IllegalArgumentException("Room not found"));
+    public void deactivateRoom(Room room) {
+        Room toUpdateRoom = getRoom(room);
 
-        room.setActive(false);
-        roomRepository.save(room);
+        toUpdateRoom.setActive(false);
+        roomRepository.save(toUpdateRoom);
+    }
+
+
+    @Override
+    public Room getRoom(Room room){
+        return roomRepository.findById(room.getId())
+                .orElseThrow(()->new IllegalStateException("Room doesn't exists"));
     }
 }
