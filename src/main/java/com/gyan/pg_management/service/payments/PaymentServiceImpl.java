@@ -6,6 +6,8 @@ import com.gyan.pg_management.entity.Tenant;
 import com.gyan.pg_management.enums.BookingStatus;
 import com.gyan.pg_management.enums.PaymentMode;
 import com.gyan.pg_management.repository.PaymentRepository;
+import com.gyan.pg_management.service.balance.BalanceService;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -13,8 +15,10 @@ import java.time.LocalDate;
 
 @Service
 @RequiredArgsConstructor
+@Transactional
 public class PaymentServiceImpl implements PaymentService {
     private final PaymentRepository paymentRepository;
+    private final BalanceService balanceService;
 
     @Override
     public Payment recordPayment(
@@ -45,6 +49,8 @@ public class PaymentServiceImpl implements PaymentService {
                 .remarks(remarks)
                 .build();
 
-        return paymentRepository.save(payment);
+        Payment savedPayment = paymentRepository.save(payment);
+        balanceService.applyPayment(tenant,amount);
+        return savedPayment;
     }
 }

@@ -33,6 +33,9 @@ public class Bed {
     @Column(nullable = false)
     private Boolean active = true;
 
+    @Column(nullable = false)
+    private Boolean blocked = false;
+
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
 

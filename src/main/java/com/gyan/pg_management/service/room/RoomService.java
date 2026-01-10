@@ -9,5 +9,6 @@ public interface RoomService {
             Integer floorNumber,
             Integer totalBeds
     );
-    void deactivateRoom(Long roomId);
+    void deactivateRoom(Room room);
+    Room getRoom(Room room);
 }

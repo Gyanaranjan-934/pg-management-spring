@@ -23,4 +23,9 @@ public class TenantServiceImpl implements TenantService{
         tenant.setActive(false);
         tenantRepository.save(tenant);
     }
+
+    @Override
+    public Tenant getTenant(Long tenantId){
+        return tenantRepository.findById(tenantId).orElseThrow(()->new IllegalStateException("Tenant not found!!!"));
+    }
 }
