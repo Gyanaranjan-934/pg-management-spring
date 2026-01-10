@@ -1,5 +1,7 @@
 package com.gyan.pg_management.service.booking;
 
+import com.gyan.pg_management.dto.request.booking.BookingCancelRequest;
+import com.gyan.pg_management.dto.request.booking.BookingCheckoutRequest;
 import com.gyan.pg_management.dto.request.booking.BookingCreateRequest;
 import com.gyan.pg_management.dto.response.booking.BookingResponse;
 import com.gyan.pg_management.entity.*;
@@ -31,30 +33,30 @@ public class BookingServiceImpl implements BookingService{
 
     @Transactional
     @Override
-    @NonNull
     public BookingResponse createBooking(BookingCreateRequest bookingCreateRequest) {
 
-        // Rule: start date validation
+        // 1. Rule: start date validation
         if (bookingCreateRequest.getStartDate().isBefore(LocalDate.now())) {
             throw new IllegalArgumentException("Start date cannot be in the past");
         }
 
+        // 2. Fetch dependencies
         Bed bed = bedService.getBed(bookingCreateRequest.getBedId());
+        Tenant tenant = tenantService.getTenant(bookingCreateRequest.getTenantId());
 
-        // Rule: bed availability
+        // 3. Rule: bed availability (Better to check bed's own status if possible)
         bookingRepository.findByBedAndStatus(bed, BookingStatus.ACTIVE)
                 .ifPresent(b -> {
-                    throw new IllegalStateException("Bed is already occupied");
+                    throw new IllegalStateException("Bed is already occupied by another tenant");
                 });
 
-        Tenant tenant = tenantService.getTenant(bookingCreateRequest.getTenantId());
-        // Rule: Tenant has already active booking or not
+        // 4. Rule: Tenant already has an active booking
         bookingRepository.findByTenantAndStatus(tenant, BookingStatus.ACTIVE)
                 .ifPresent(booking -> {
-                    throw new IllegalStateException("Tenant already having active booking");
+                    throw new IllegalStateException("Tenant already has an active booking");
                 });
 
-
+        // 5. Build the Entity
         Booking booking = Booking.builder()
                 .tenant(tenant)
                 .bed(bed)
@@ -64,44 +66,41 @@ public class BookingServiceImpl implements BookingService{
                 .status(BookingStatus.ACTIVE)
                 .build();
 
-        Booking savedBooking = bookingRepository.save(booking);
-        return BookingMapper.toResponse(savedBooking);
-    }
+        // 6. IMPORTANT: Persist the new entity
+        booking = bookingRepository.save(booking);
 
+        // 7. Optional but recommended: Update Bed state if Bed entity has a status field
+        // bed.setStatus(BedStatus.OCCUPIED);
+
+        return BookingMapper.toResponse(booking);
+    }
     @Transactional
     @Override
-    public Booking checkoutBooking(Long bookingId, LocalDate checkoutDate) {
-        Objects.requireNonNull(bookingId,"BookingId must not be null");
-        Booking booking = bookingRepository.findById(bookingId)
+    public BookingResponse checkoutBooking(BookingCheckoutRequest bookingCheckoutRequest) {
+        Booking booking = bookingRepository.findById(bookingCheckoutRequest.getBookingId())
                 .orElseThrow(() -> new IllegalArgumentException("Booking not found"));
 
         if (booking.getStatus() == BookingStatus.COMPLETED) {
             throw new IllegalStateException("Booking already completed");
         }
 
-        // Ensure balance exists
         Balance balance = balanceService.getOrCreateBalance(booking.getTenant());
 
-        // Due check
         if (balanceService.hasPendingDues(booking.getTenant())) {
             throw new IllegalStateException("Outstanding dues exist. Clear before booking.");
         }
-
-        if (checkoutDate.isBefore(LocalDate.now())){
-            throw new IllegalStateException("Checkout date cannot be before current date");
-        }
-
         booking.setStatus(BookingStatus.COMPLETED);
-        booking.setEndDate(LocalDate.now());
+        booking.setEndDate(bookingCheckoutRequest.getCheckoutDate());
 
-        return bookingRepository.save(booking);
+        booking = bookingRepository.save(booking);
+        return BookingMapper.toResponse(booking);
     }
 
     @Transactional
     @Override
-    public Booking cancelBooking(Long bookingId) {
+    public BookingResponse cancelBooking(BookingCancelRequest bookingCancelRequest) {
 
-        Booking booking = bookingRepository.findById(bookingId)
+        Booking booking = bookingRepository.findById(bookingCancelRequest.getBookingId())
                 .orElseThrow(() -> new IllegalArgumentException("Booking not found"));
 
         // Rule 1: Already completed
@@ -124,7 +123,8 @@ public class BookingServiceImpl implements BookingService{
         booking.setStatus(BookingStatus.CANCELLED);
         booking.setEndDate(LocalDate.now()); // audit purpose
 
-        return bookingRepository.save(booking);
+        Booking savedBooking = bookingRepository.save(booking);
+        return BookingMapper.toResponse(savedBooking);
     }
 
 }

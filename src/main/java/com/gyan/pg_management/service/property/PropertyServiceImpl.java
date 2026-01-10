@@ -1,8 +1,13 @@
 package com.gyan.pg_management.service.property;
 
+import com.gyan.pg_management.dto.request.property.PropertyCreateRequest;
+import com.gyan.pg_management.dto.response.property.PropertyResponse;
 import com.gyan.pg_management.entity.Property;
 import com.gyan.pg_management.entity.User;
+import com.gyan.pg_management.exceptions.user.UserNotFoundException;
+import com.gyan.pg_management.mapper.PropertyMapper;
 import com.gyan.pg_management.repository.PropertyRepository;
+import com.gyan.pg_management.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -11,23 +16,22 @@ import org.springframework.stereotype.Service;
 public class PropertyServiceImpl implements PropertyService{
 
     private final PropertyRepository propertyRepository;
+    private final UserRepository userRepository;
 
     @Override
-    public Property createProperty(
-            String name,
-            String address,
-            Integer totalFloors,
-            User owner
-    ) {
+    public PropertyResponse createProperty(PropertyCreateRequest request) {
+        User owner = userRepository.findById(request.getOwnerId())
+                        .orElseThrow(()->new UserNotFoundException("User not found"));
+
         Property property = Property.builder()
-                .name(name)
-                .address(address)
-                .totalFloors(totalFloors)
+                .name(request.getName())
+                .address(request.getAddress())
+                .totalFloors(request.getTotalFloors())
                 .owner(owner)
-                .active(true)
                 .build();
 
-        return propertyRepository.save(property);
+        property = propertyRepository.save(property);
+        return PropertyMapper.toResponse(property);
     }
 
     @Override
