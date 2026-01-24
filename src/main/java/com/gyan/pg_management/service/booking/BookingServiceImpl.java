@@ -16,6 +16,7 @@ import com.gyan.pg_management.service.tenant.TenantService;
 import jakarta.transaction.Transactional;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
@@ -23,108 +24,104 @@ import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
-public class BookingServiceImpl implements BookingService{
+@Slf4j
+public class BookingServiceImpl implements BookingService {
 
     private final BookingRepository bookingRepository;
-    private final PaymentRepository paymentRepository;
     private final BalanceService balanceService;
     private final BedService bedService;
     private final TenantService tenantService;
 
     @Transactional
     @Override
-    public BookingResponse createBooking(BookingCreateRequest bookingCreateRequest) {
+    public BookingResponse createBooking(BookingCreateRequest request) {
+        log.info("Starting booking creation process for Tenant: {}", request.getTenantId());
 
-        // 1. Rule: start date validation
-        if (bookingCreateRequest.getStartDate().isBefore(LocalDate.now())) {
-            throw new IllegalArgumentException("Start date cannot be in the past");
-        }
+        // 1. Fetching Entities
+        Bed bed = bedService.getBed(request.getBedId());
+        Tenant tenant = tenantService.getTenant(request.getTenantId());
 
-        // 2. Fetch dependencies
-        Bed bed = bedService.getBed(bookingCreateRequest.getBedId());
-        Tenant tenant = tenantService.getTenant(bookingCreateRequest.getTenantId());
-
-        // 3. Rule: bed availability (Better to check bed's own status if possible)
+        // 2. Business Rules Validations
+        log.debug("Checking availability for Bed ID: {}", request.getBedId());
         bookingRepository.findByBedAndStatus(bed, BookingStatus.ACTIVE)
                 .ifPresent(b -> {
+                    log.error("Validation Failed: Bed {} is already occupied", request.getBedId());
                     throw new IllegalStateException("Bed is already occupied by another tenant");
                 });
 
-        // 4. Rule: Tenant already has an active booking
+        log.debug("Checking if Tenant {} has any active bookings", request.getTenantId());
         bookingRepository.findByTenantAndStatus(tenant, BookingStatus.ACTIVE)
-                .ifPresent(booking -> {
+                .ifPresent(b -> {
+                    log.error("Validation Failed: Tenant {} already has an active booking", request.getTenantId());
                     throw new IllegalStateException("Tenant already has an active booking");
                 });
 
-        // 5. Build the Entity
+        // 3. Build & Save
         Booking booking = Booking.builder()
                 .tenant(tenant)
                 .bed(bed)
-                .startDate(bookingCreateRequest.getStartDate())
-                .monthlyRent(bookingCreateRequest.getMonthlyRent())
-                .securityDeposit(bookingCreateRequest.getSecurityDeposit())
+                .startDate(request.getStartDate())
+                .monthlyRent(request.getMonthlyRent())
+                .securityDeposit(request.getSecurityDeposit())
                 .status(BookingStatus.ACTIVE)
                 .build();
 
-        // 6. IMPORTANT: Persist the new entity
-        booking = bookingRepository.save(booking);
-
-        // 7. Optional but recommended: Update Bed state if Bed entity has a status field
-        // bed.setStatus(BedStatus.OCCUPIED);
-
-        return BookingMapper.toResponse(booking);
-    }
-    @Transactional
-    @Override
-    public BookingResponse checkoutBooking(BookingCheckoutRequest bookingCheckoutRequest) {
-        Booking booking = bookingRepository.findById(bookingCheckoutRequest.getBookingId())
-                .orElseThrow(() -> new IllegalArgumentException("Booking not found"));
-
-        if (booking.getStatus() == BookingStatus.COMPLETED) {
-            throw new IllegalStateException("Booking already completed");
-        }
-
-        Balance balance = balanceService.getOrCreateBalance(booking.getTenant());
-
-        if (balanceService.hasPendingDues(booking.getTenant())) {
-            throw new IllegalStateException("Outstanding dues exist. Clear before booking.");
-        }
-        booking.setStatus(BookingStatus.COMPLETED);
-        booking.setEndDate(bookingCheckoutRequest.getCheckoutDate());
-
-        booking = bookingRepository.save(booking);
-        return BookingMapper.toResponse(booking);
-    }
-
-    @Transactional
-    @Override
-    public BookingResponse cancelBooking(BookingCancelRequest bookingCancelRequest) {
-
-        Booking booking = bookingRepository.findById(bookingCancelRequest.getBookingId())
-                .orElseThrow(() -> new IllegalArgumentException("Booking not found"));
-
-        // Rule 1: Already completed
-        if (booking.getStatus() == BookingStatus.COMPLETED) {
-            throw new IllegalStateException("Completed booking cannot be cancelled");
-        }
-
-        // Rule 2: Already cancelled
-        if (booking.getStatus() == BookingStatus.CANCELLED) {
-            throw new IllegalStateException("Booking already cancelled");
-        }
-
-        // Rule 3: Stay already started
-        if (!booking.getStartDate().isAfter(LocalDate.now())) {
-            throw new IllegalStateException(
-                    "Booking cannot be cancelled after stay has started"
-            );
-        }
-
-        booking.setStatus(BookingStatus.CANCELLED);
-        booking.setEndDate(LocalDate.now()); // audit purpose
-
         Booking savedBooking = bookingRepository.save(booking);
+        log.info("Booking created successfully with ID: {}", savedBooking.getId());
+
         return BookingMapper.toResponse(savedBooking);
     }
 
+    @Transactional
+    @Override
+    public BookingResponse checkoutBooking(BookingCheckoutRequest request) {
+        log.info("Processing checkout for Booking ID: {}", request.getBookingId());
+
+        Booking booking = bookingRepository.findById(request.getBookingId())
+                .orElseThrow(() -> new IllegalArgumentException("Booking not found: " + request.getBookingId()));
+
+        if (booking.getStatus() == BookingStatus.COMPLETED) {
+            log.warn("Checkout skipped: Booking {} is already COMPLETED", request.getBookingId());
+            throw new IllegalStateException("Booking already completed");
+        }
+
+        // Dues Check
+        if (balanceService.hasPendingDues(booking.getTenant())) {
+            log.error("Checkout blocked: Tenant {} has pending dues", booking.getTenant().getId());
+            throw new IllegalStateException("Outstanding dues exist. Clear before checkout.");
+        }
+
+        booking.setStatus(BookingStatus.COMPLETED);
+        booking.setEndDate(request.getCheckoutDate());
+        booking.getBed().setBlocked(false);
+
+        log.info("Checkout successful for Booking ID: {} on Date: {}", request.getBookingId(), request.getCheckoutDate());
+        return BookingMapper.toResponse(bookingRepository.save(booking));
+    }
+
+    @Transactional
+    @Override
+    public BookingResponse cancelBooking(BookingCancelRequest request) {
+        log.info("Processing cancellation for Booking ID: {}", request.getBookingId());
+
+        Booking booking = bookingRepository.findById(request.getBookingId())
+                .orElseThrow(() -> new IllegalArgumentException("Booking not found"));
+
+        if (booking.getStatus() != BookingStatus.ACTIVE) {
+            log.error("Cancellation failed: Booking {} is in status {}", request.getBookingId(), booking.getStatus());
+            throw new IllegalStateException("Only active bookings can be cancelled");
+        }
+
+        // Logic: Cannot cancel if stay has already started
+        if (!booking.getStartDate().isAfter(LocalDate.now())) {
+            log.warn("Cancellation rejected: Stay has already started for Booking {}", request.getBookingId());
+            throw new IllegalStateException("Stay has already started. Use Checkout instead.");
+        }
+
+        booking.setStatus(BookingStatus.CANCELLED);
+        booking.setEndDate(LocalDate.now());
+
+        log.info("Booking ID: {} cancelled successfully", request.getBookingId());
+        return BookingMapper.toResponse(bookingRepository.save(booking));
+    }
 }
