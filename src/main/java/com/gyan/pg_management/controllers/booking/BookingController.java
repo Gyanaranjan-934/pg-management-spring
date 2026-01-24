@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.*;
 import lombok.RequiredArgsConstructor;
 
 @RestController
-@RequestMapping("/api/bookings")
+@RequestMapping("/api/booking")
 @RequiredArgsConstructor
 @Slf4j
 public class BookingController {

@@ -12,5 +12,10 @@ public interface BedRepository extends JpaRepository<Bed, Long> {
         where b.room.id = ?1
     """)
     Long getTotalBedCountOfRoom(Long roomId);
+
+//    @Query("select count(b) from Bed b where b.room.id = ?1 and b.blocked = true")
+//    Long getTotalActiveBedCountOfRoom(Long roomId);
+
+    Long countByRoomIdAndBlockedTrue(Long roomId);
 }
 

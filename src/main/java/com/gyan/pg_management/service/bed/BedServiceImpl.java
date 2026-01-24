@@ -1,13 +1,19 @@
 package com.gyan.pg_management.service.bed;
 
+import com.gyan.pg_management.dto.request.bed.BedCreateRequest;
+import com.gyan.pg_management.dto.request.bed.BedUpdateRequest;
+import com.gyan.pg_management.dto.response.bed.BedResponse;
 import com.gyan.pg_management.entity.Bed;
 import com.gyan.pg_management.entity.Booking;
 import com.gyan.pg_management.entity.Room;
 import com.gyan.pg_management.enums.BookingStatus;
+import com.gyan.pg_management.mapper.BedMapper;
 import com.gyan.pg_management.repository.BedRepository;
 import com.gyan.pg_management.repository.BookingRepository;
+import com.gyan.pg_management.repository.RoomRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.Optional;
@@ -15,64 +21,54 @@ import java.util.Optional;
 @Service
 @RequiredArgsConstructor
 @Transactional
+@Slf4j
 public class BedServiceImpl implements BedService {
 
     private final BedRepository bedRepository;
     private final BookingRepository bookingRepository;
+    private final RoomRepository roomRepository;
 
-    public Bed createBed(String bedNumber, Room room) {
+    @Transactional
+    @Override
+    public BedResponse createBed(BedCreateRequest request) {
+
+        Room room = roomRepository.findById(request.getRoomId())
+                .orElseThrow(()->new IllegalArgumentException("Room not found with given Id"));
+
         if (!room.getActive()) {
             throw new IllegalStateException("Cannot add bed to inactive room");
         }
-        Long bedCount = bedRepository.getTotalBedCountOfRoom(room.getId());
-        long currentBedCount = bedCount == null ? 0 : bedCount;
 
-        if (currentBedCount >= room.getTotalBeds()) {
+        Long bedCount = bedRepository.countByRoomIdAndBlockedTrue(request.getRoomId());
+
+        if (bedCount >= room.getTotalBeds()) {
             throw new IllegalStateException(
                     "Room is already in full capacity. Please choose a different room."
             );
         }
 
         Bed bed = Bed.builder()
-                .bedNumber(bedNumber)
+                .bedNumber(request.getBedNumber())
                 .room(room)
                 .build();
 
-        return bedRepository.save(bed);
-    }
-    @Override
-    public void blockBed(Long bedId) {
-        Bed toUpdateBed = getBed(bedId);
-        toUpdateBed.setBlocked(true);
-        bedRepository.save(toUpdateBed);
-    }
-    @Override
-    public void unblockBed(Long bedId) {
-        Bed toUpdateBed = getBed(bedId);
-        toUpdateBed.setBlocked(false);
-        bedRepository.save(toUpdateBed);
+        Bed savedBed = bedRepository.save(bed);
+        log.info("Bed created successfully with ID: {}", savedBed.getId());
+
+        return BedMapper.toResponse(savedBed);
     }
 
     @Override
-    public void deactivateBed(Long bedId) {
-        // 1. Find the bed or fail early
-        Bed foundBed = getBed(bedId);
-        // 2. Check for active bookings
-        boolean hasActiveBooking = bookingRepository.findByBedAndStatus(foundBed, BookingStatus.ACTIVE).isPresent();
+    @Transactional
+    public BedResponse updateBed(BedUpdateRequest request) {
+        Bed bed = bedRepository.findById(request.getBedId())
+                .orElseThrow(()->new IllegalArgumentException("Bed not found"));
 
-        if (hasActiveBooking) {
-            throw new IllegalStateException("Cannot deactivate bed with active booking");
-        }
+        bed.setActive(request.getActive());
+        bed.setBlocked(request.getBlocked());
 
-        // 3. Perform update
-        foundBed.setActive(false);
-        foundBed.setBlocked(false);
-        bedRepository.save(foundBed);
-    }
+        Bed updatedBed = bedRepository.save(bed);
 
-    @Override
-    public Bed getBed(Long bedId){
-        return bedRepository.findById(bedId)
-                .orElseThrow(() -> new IllegalStateException("Bed not found!!!"));
+        return BedMapper.toResponse(updatedBed);
     }
 }
