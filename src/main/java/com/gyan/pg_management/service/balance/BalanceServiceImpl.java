@@ -1,7 +1,7 @@
 package com.gyan.pg_management.service.balance;
 
 import com.gyan.pg_management.entity.Balance;
-import com.gyan.pg_management.entity.Tenant;
+import com.gyan.pg_management.entity.User;
 import com.gyan.pg_management.exceptions.payment.ExcessPaymentException;
 import com.gyan.pg_management.repository.BalanceRepository;
 import lombok.RequiredArgsConstructor;
@@ -16,7 +16,7 @@ public class BalanceServiceImpl implements BalanceService {
     private final BalanceRepository balanceRepository;
 
     @Override
-    public Balance getOrCreateBalance(Tenant tenant) {
+    public Balance getOrCreateBalance(User tenant) {
         return balanceRepository.findByTenant(tenant)
                 .orElseGet(() -> balanceRepository.save(
                         Balance.builder()
@@ -28,7 +28,7 @@ public class BalanceServiceImpl implements BalanceService {
     }
 
     @Override
-    public void addCharge(Tenant tenant, double amount, String reason) {
+    public void addCharge(User tenant, double amount, String reason) {
         if (amount <= 0) {
             throw new IllegalArgumentException("Charge amount must be positive");
         }
@@ -43,7 +43,7 @@ public class BalanceServiceImpl implements BalanceService {
     }
 
     @Override
-    public void applyPayment(Tenant tenant, Double amount) {
+    public void applyPayment(User tenant, Double amount) {
         Balance balance = getOrCreateBalance(tenant);
         if (balance.getOutstandingAmount() < amount){
             throw new ExcessPaymentException(balance.getOutstandingAmount());
@@ -54,12 +54,12 @@ public class BalanceServiceImpl implements BalanceService {
     }
 
     @Override
-    public Balance getBalance(Tenant tenant) {
+    public Balance getBalance(User tenant) {
         return balanceRepository.findByTenant(tenant).orElseThrow(()->new IllegalStateException("Balance not found"));
     }
 
     @Override
-    public boolean hasPendingDues(Tenant tenant) {
+    public boolean hasPendingDues(User tenant) {
         return balanceRepository.findByTenant(tenant)
                 .map(b -> b.getOutstandingAmount() > 0)
                 .orElse(false);

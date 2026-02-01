@@ -5,22 +5,19 @@ import com.gyan.pg_management.dto.request.booking.BookingCheckoutRequest;
 import com.gyan.pg_management.dto.request.booking.BookingCreateRequest;
 import com.gyan.pg_management.dto.response.booking.BookingResponse;
 import com.gyan.pg_management.entity.*;
+import com.gyan.pg_management.enums.BedStatus;
 import com.gyan.pg_management.enums.BookingStatus;
+import com.gyan.pg_management.exceptions.user.UserNotFoundException;
 import com.gyan.pg_management.mapper.BookingMapper;
+import com.gyan.pg_management.repository.BedRepository;
 import com.gyan.pg_management.repository.BookingRepository;
-import com.gyan.pg_management.repository.PaymentRepository;
+import com.gyan.pg_management.repository.UserRepository;
 import com.gyan.pg_management.service.balance.BalanceService;
-import com.gyan.pg_management.service.balance.BalanceServiceImpl;
-import com.gyan.pg_management.service.bed.BedService;
-import com.gyan.pg_management.service.tenant.TenantService;
 import jakarta.transaction.Transactional;
-import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-
 import java.time.LocalDate;
-import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
@@ -29,8 +26,8 @@ public class BookingServiceImpl implements BookingService {
 
     private final BookingRepository bookingRepository;
     private final BalanceService balanceService;
-    private final BedService bedService;
-    private final TenantService tenantService;
+    private final BedRepository bedRepository;
+    private final UserRepository userRepository;
 
     @Transactional
     @Override
@@ -38,8 +35,11 @@ public class BookingServiceImpl implements BookingService {
         log.info("Starting booking creation process for Tenant: {}", request.getTenantId());
 
         // 1. Fetching Entities
-        Bed bed = bedService.getBed(request.getBedId());
-        Tenant tenant = tenantService.getTenant(request.getTenantId());
+        Bed bed = bedRepository.findById(request.getBedId())
+                    .orElseThrow(()->new IllegalArgumentException("Bed Not found"));
+
+        User tenant = userRepository.findById(request.getTenantId())
+                    .orElseThrow(()->new UserNotFoundException("Tenant not found"));
 
         // 2. Business Rules Validations
         log.debug("Checking availability for Bed ID: {}", request.getBedId());
@@ -93,7 +93,7 @@ public class BookingServiceImpl implements BookingService {
 
         booking.setStatus(BookingStatus.COMPLETED);
         booking.setEndDate(request.getCheckoutDate());
-        booking.getBed().setBlocked(false);
+        booking.getBed().setStatus(BedStatus.VACANT);
 
         log.info("Checkout successful for Booking ID: {} on Date: {}", request.getBookingId(), request.getCheckoutDate());
         return BookingMapper.toResponse(bookingRepository.save(booking));

@@ -3,6 +3,8 @@ package com.gyan.pg_management.entity;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.time.LocalDateTime;
+
 @Entity
 @Getter
 @Setter
@@ -18,7 +20,7 @@ public class Balance {
 
     @OneToOne
     @JoinColumn(name = "tenant_id", nullable = false, unique = true)
-    private Tenant tenant;
+    private User tenant;
 
     @Column(nullable = false)
     private Double outstandingAmount;
@@ -26,4 +28,23 @@ public class Balance {
     @Column(nullable = false)
     private Double totalPaid;
 
+    @Column(nullable = false, updatable = false)
+    private LocalDateTime createdAt;
+
+    @Column
+    private LocalDateTime updatedAt;
+
+    @Column
+    private LocalDateTime effectiveEndDate;
+
+    @PrePersist
+    protected void onCreate() {
+        this.createdAt = LocalDateTime.now();
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    @PreUpdate
+    protected void onUpdate(){
+        this.updatedAt = LocalDateTime.now();
+    }
 }

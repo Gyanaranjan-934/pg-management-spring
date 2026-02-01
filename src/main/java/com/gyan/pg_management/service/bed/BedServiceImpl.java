@@ -4,9 +4,8 @@ import com.gyan.pg_management.dto.request.bed.BedCreateRequest;
 import com.gyan.pg_management.dto.request.bed.BedUpdateRequest;
 import com.gyan.pg_management.dto.response.bed.BedResponse;
 import com.gyan.pg_management.entity.Bed;
-import com.gyan.pg_management.entity.Booking;
 import com.gyan.pg_management.entity.Room;
-import com.gyan.pg_management.enums.BookingStatus;
+import com.gyan.pg_management.enums.BedStatus;
 import com.gyan.pg_management.mapper.BedMapper;
 import com.gyan.pg_management.repository.BedRepository;
 import com.gyan.pg_management.repository.BookingRepository;
@@ -16,7 +15,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
-import java.util.Optional;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -39,7 +38,8 @@ public class BedServiceImpl implements BedService {
             throw new IllegalStateException("Cannot add bed to inactive room");
         }
 
-        Long bedCount = bedRepository.countByRoomIdAndBlockedTrue(request.getRoomId());
+        Long bedCount = bedRepository.countByIdAndStatusIn(request.getRoomId(),
+                                            List.of(BedStatus.OCCUPIED, BedStatus.RESERVED));
 
         if (bedCount >= room.getTotalBeds()) {
             throw new IllegalStateException(
@@ -50,6 +50,7 @@ public class BedServiceImpl implements BedService {
         Bed bed = Bed.builder()
                 .bedNumber(request.getBedNumber())
                 .room(room)
+                .status(BedStatus.VACANT)
                 .build();
 
         Bed savedBed = bedRepository.save(bed);
@@ -64,9 +65,7 @@ public class BedServiceImpl implements BedService {
         Bed bed = bedRepository.findById(request.getBedId())
                 .orElseThrow(()->new IllegalArgumentException("Bed not found"));
 
-        bed.setActive(request.getActive());
-        bed.setBlocked(request.getBlocked());
-
+        bed.setStatus(request.getBedStatus());
         Bed updatedBed = bedRepository.save(bed);
 
         return BedMapper.toResponse(updatedBed);

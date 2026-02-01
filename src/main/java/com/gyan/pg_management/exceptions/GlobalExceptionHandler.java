@@ -33,6 +33,16 @@ public class GlobalExceptionHandler {
         return ResponseEntity.badRequest().body(errors);
     }
 
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<ErrorResponse> handleGenericException(Exception ex) {
+        log.error("Unhandled exception", ex);
+        return buildResponse(
+                HttpStatus.INTERNAL_SERVER_ERROR,
+                "Internal Server Error",
+                ex.getMessage()
+        );
+    }
+
     // Helper method to keep code dry
     private ResponseEntity<ErrorResponse> buildResponse(HttpStatus status, String error, String message) {
         ErrorResponse response = ErrorResponse.builder()
@@ -43,4 +53,5 @@ public class GlobalExceptionHandler {
                 .build();
         return new ResponseEntity<>(response, status);
     }
+
 }

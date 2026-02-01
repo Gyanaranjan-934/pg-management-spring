@@ -1,5 +1,6 @@
 package com.gyan.pg_management.entity;
 
+import com.gyan.pg_management.enums.BedStatus;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -30,11 +31,8 @@ public class Bed {
     @JoinColumn(name = "room_id", nullable = false)
     private Room room;
 
-    @Column(nullable = false)
-    private Boolean active = true;
-
-    @Column(nullable = false)
-    private Boolean blocked = false;
+    @Column(name = "status", nullable = false)
+    private BedStatus status;
 
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;

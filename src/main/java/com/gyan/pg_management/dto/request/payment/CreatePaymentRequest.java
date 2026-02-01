@@ -2,13 +2,16 @@ package com.gyan.pg_management.dto.request.payment;
 
 import com.gyan.pg_management.enums.PaymentMode;
 import jakarta.validation.constraints.*;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
 
 @Data
-@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class CreatePaymentRequest {
 
     @NotNull(message = "Booking ID must not be null")

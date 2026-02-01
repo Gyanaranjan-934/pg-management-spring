@@ -8,4 +8,5 @@ import com.gyan.pg_management.entity.User;
 public interface PropertyService {
     PropertyResponse createProperty(PropertyCreateRequest request);
     void deactivateProperty(Long propertyId);
+    PropertyResponse[] getAllProperties(Long ownerId);
 }

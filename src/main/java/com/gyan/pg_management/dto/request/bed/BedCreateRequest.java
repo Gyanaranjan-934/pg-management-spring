@@ -1,11 +1,14 @@
 package com.gyan.pg_management.dto.request.bed;
 
 import jakarta.validation.constraints.NotNull;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 @Data
-@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class BedCreateRequest {
     @NotNull(message = "Room Id is required")
     private Long roomId;

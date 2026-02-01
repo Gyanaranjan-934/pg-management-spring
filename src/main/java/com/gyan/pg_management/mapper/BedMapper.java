@@ -18,6 +18,7 @@ public final class BedMapper {
                 .bedId(bed.getId())
                 .bedNumber(bed.getBedNumber())
                 .roomNumber(bed.getRoom().getRoomNumber())
+                .bedStatus(bed.getStatus())
                 .build();
     }
 }

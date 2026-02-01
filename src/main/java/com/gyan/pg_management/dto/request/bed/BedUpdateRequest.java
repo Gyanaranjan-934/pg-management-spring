@@ -1,11 +1,15 @@
 package com.gyan.pg_management.dto.request.bed;
 
+import com.gyan.pg_management.enums.BedStatus;
 import jakarta.validation.constraints.NotNull;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 @Data
-@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class BedUpdateRequest {
     @NotNull(message = "Bed Id is required")
     private Long bedId;
@@ -13,9 +17,6 @@ public class BedUpdateRequest {
     @NotNull(message = "Bed number cannot be null")
     private String bedNumber;
 
-    @NotNull(message = "Active status cannot be null")
-    private Boolean active;
-
-    @NotNull(message = "Block status cannot be null")
-    private Boolean blocked;
+    @NotNull(message = "Status cannot be null")
+    private BedStatus bedStatus;
 }

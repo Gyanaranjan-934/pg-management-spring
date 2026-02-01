@@ -11,6 +11,9 @@ import com.gyan.pg_management.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
+import java.util.stream.Collectors;
+
 @Service
 @RequiredArgsConstructor
 public class PropertyServiceImpl implements PropertyService{
@@ -28,6 +31,7 @@ public class PropertyServiceImpl implements PropertyService{
                 .address(request.getAddress())
                 .totalFloors(request.getTotalFloors())
                 .owner(owner)
+                .active(true)
                 .build();
 
         property = propertyRepository.save(property);
@@ -42,4 +46,18 @@ public class PropertyServiceImpl implements PropertyService{
         property.setActive(false);
         propertyRepository.save(property);
     }
+
+    @Override
+    public PropertyResponse[] getAllProperties(Long ownerId) {
+        User owner = userRepository.findById(ownerId)
+                .orElseThrow(()->new UserNotFoundException("User not found"));
+
+        List<Property> properties = propertyRepository.findAllByOwner(owner);
+
+        return  properties.stream().map(PropertyMapper::toResponse)
+                .toArray(PropertyResponse[]::new);
+
+    }
+
+
 }
