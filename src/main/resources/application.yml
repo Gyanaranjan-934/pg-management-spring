@@ -1,6 +1,9 @@
 server:
   servlet:
     context-path: /api/v1
+app:
+  oauth2:
+    redirect-uri: ${OAUTH2_REDIRECT_URI:http://localhost:3000/oauth2/redirect}
 spring:
   datasource:
     url: jdbc:postgresql://localhost:5432/pg_db
