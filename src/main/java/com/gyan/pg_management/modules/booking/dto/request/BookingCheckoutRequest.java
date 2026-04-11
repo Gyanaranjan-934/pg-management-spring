@@ -1,0 +1,21 @@
+package com.gyan.pg_management.modules.booking.dto.request;
+
+import jakarta.validation.constraints.FutureOrPresent;
+import jakarta.validation.constraints.NotNull;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import java.time.LocalDate;
+
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class BookingCheckoutRequest {
+    @NotNull(message = "Booking Id cannot be null")
+    private Long bookingId;
+    @NotNull(message = "Checkout Date must not be null")
+    @FutureOrPresent(message = "Start date must be today or in the future")
+    private LocalDate checkoutDate;
+}
